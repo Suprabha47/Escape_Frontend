@@ -1,0 +1,127 @@
+.chat {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeIn 0.8s ease;
+}
+
+.inner {
+  width: 100%;
+  max-width: 560px;
+}
+
+.goalEcho {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-trace);
+  text-transform: uppercase;
+  margin-bottom: 3rem;
+}
+
+.goalEcho span {
+  color: var(--ink-ghost);
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.msgAi {
+  font-size: clamp(1.1rem, 2.5vw, 1.35rem);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--ink-dim);
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+  animation: slideUp 0.5s ease;
+}
+
+.msgUser {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-ghost);
+  letter-spacing: 0.05em;
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--ink-void);
+  animation: slideUp 0.4s ease;
+}
+
+/* Typing indicator */
+.typingDots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.typingDots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-ghost);
+  animation: blink 1.2s infinite;
+}
+
+.typingDots span:nth-child(2) { animation-delay: 0.2s; }
+.typingDots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Input row */
+.inputRow {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--ink-void);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-weight: 300;
+  font-style: italic;
+  padding: 0.5rem 0;
+  outline: none;
+  transition: border-color 0.3s;
+  caret-color: var(--ink);
+  resize: none;
+  min-height: 32px;
+  max-height: 120px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.input:focus {
+  border-color: var(--ink-ghost);
+}
+
+.sendBtn {
+  background: transparent;
+  border: none;
+  color: var(--ink-trace);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  transition: color 0.3s;
+  white-space: nowrap;
+}
+
+.sendBtn:hover:not(:disabled) {
+  color: var(--ink-muted);
+}
+
+.sendBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

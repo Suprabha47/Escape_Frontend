@@ -1,0 +1,222 @@
+.action {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 2rem 5rem;
+}
+
+.inner {
+  width: 100%;
+  max-width: 560px;
+}
+
+/* ── Top bar ── */
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4.5rem;
+}
+
+.counter {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  color: var(--ink-trace);
+  text-transform: uppercase;
+}
+
+.counter em {
+  color: var(--ink-ghost);
+  font-style: normal;
+}
+
+.idleCluster {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.idleWarning {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  color: #6a5a48;
+  text-transform: uppercase;
+  animation: idlePulse 2s ease infinite;
+}
+
+/* Idle ring */
+.idleRing {
+  transform: rotate(-90deg);
+  display: block;
+}
+
+.ringTrack {
+  fill: none;
+  stroke: var(--ink-abyss);
+  stroke-width: 1.5;
+}
+
+.ringFill {
+  fill: none;
+  stroke: var(--ink-void);
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  transition: stroke-dashoffset 1s linear, stroke 1s ease;
+}
+
+.ringWarn {
+  stroke: #7a6050;
+}
+
+/* ── Step card ── */
+.cardWrap {
+  position: relative;
+  min-height: 260px;
+  text-align: center;
+}
+
+.card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cardEnter {
+  animation: stepEnter 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cardExit {
+  animation: stepExit 0.32s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.stepNumber {
+  font-family: var(--serif);
+  font-size: 6.5rem;
+  font-weight: 300;
+  color: var(--ink-deep);
+  line-height: 1;
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+.stepText {
+  font-size: clamp(1.3rem, 3vw, 1.85rem);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.9rem;
+  max-width: 480px;
+}
+
+.stepDuration {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-trace);
+  text-transform: uppercase;
+  margin-bottom: 3rem;
+}
+
+/* ── Buttons ── */
+.btns {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.doneBtn {
+  background: transparent;
+  border: 1px solid var(--ink-void);
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  padding: 0.9rem 2.5rem;
+  cursor: pointer;
+  transition: border-color 0.3s, color 0.3s;
+}
+
+.doneBtn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.stuckBtn {
+  background: transparent;
+  border: none;
+  color: var(--ink-void);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.4s;
+  padding: 0.9rem 0;
+}
+
+.stuckBtn:hover:not(:disabled) {
+  color: #7a6050;
+}
+
+.stuckBtn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.stuckSurfaced {
+  color: #7a6050;
+  animation: idlePulse 2s ease infinite;
+}
+
+/* ── Progress ── */
+.progressSection {
+  margin-top: 4.5rem;
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 1.4rem;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  background: #181614;
+  flex-shrink: 0;
+  transition: background 0.5s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dotDone {
+  background: var(--ink-trace);
+}
+
+.dotCurrent {
+  background: var(--ink-muted);
+  transform: scale(1.6);
+}
+
+.progressBar {
+  width: 100%;
+  height: 1px;
+  background: #111010;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #242220, var(--ink-ghost));
+  transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}

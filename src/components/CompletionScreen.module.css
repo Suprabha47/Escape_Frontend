@@ -1,0 +1,89 @@
+.complete {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  /* Delay matches the burst animation duration in CompletionFlash (950ms) */
+  animation: fadeIn 0.8s ease 0.95s both;
+}
+
+.word {
+  font-family: var(--serif);
+  font-size: clamp(3rem, 10vw, 7rem);
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 1.5rem;
+}
+
+.sub {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  color: var(--ink-trace);
+  text-transform: uppercase;
+}
+
+/* ── Streak ── */
+.streakWrap {
+  margin-top: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.6s ease 1.4s both;
+}
+
+.streakRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.streakNum {
+  font-family: var(--serif);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 300;
+  color: var(--ink-muted);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.streakLabel {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-trace);
+  text-transform: uppercase;
+}
+
+.streakRecord {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-void);
+  text-transform: uppercase;
+}
+
+.restart {
+  margin-top: 4rem;
+  background: transparent;
+  border: none;
+  color: var(--ink-trace);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.3s;
+  padding: 0.5rem;
+  animation: fadeIn 0.6s ease 1.6s both;
+}
+
+.restart:hover {
+  color: var(--ink-muted);
+}

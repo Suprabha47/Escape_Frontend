@@ -1,0 +1,75 @@
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Design tokens ── */
+:root {
+  --bg:           #080808;
+  --ink:          #e8e4dc;
+  --ink-dim:      #c8c4bc;
+  --ink-muted:    #8a8680;
+  --ink-ghost:    #5a5650;
+  --ink-trace:    #3a3835;
+  --ink-void:     #2a2825;
+  --ink-abyss:    #1e1c1a;
+  --ink-deep:     #161412;
+
+  --serif:        "Cormorant Garamond", Georgia, serif;
+  --mono:         "Courier Prime", "Courier New", monospace;
+
+  /* Burst palettes — consumed by CompletionFlash */
+  --burst-0:  #7eb8a4;
+  --burst-1:  #c4956a;
+  --burst-2:  #a07ab0;
+  --burst-3:  #7a9fc4;
+  --burst-4:  #c47a7a;
+  --burst-5:  #a0c47a;
+}
+
+/* ── Base ── */
+html,
+body,
+#root {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Shared keyframes (referenced by multiple components) ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0; }
+  40%           { opacity: 1; }
+}
+
+@keyframes idlePulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+@keyframes stepEnter {
+  from { opacity: 0; transform: translateX(32px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+
+@keyframes stepExit {
+  from { opacity: 1; transform: translateX(0)    scale(1);    }
+  to   { opacity: 0; transform: translateX(-32px) scale(0.97); }
+}
