@@ -48,7 +48,6 @@ export default function ChatPhase({
       if (chatInput.trim() && !loading) onSend();
     }
   };
-  console.log("Display msgs: ",displayMsgs.content.question)
 
   return (
     <div className={styles.chat}>
