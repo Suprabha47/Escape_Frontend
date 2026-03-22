@@ -48,6 +48,7 @@ export default function ChatPhase({
       if (chatInput.trim() && !loading) onSend();
     }
   };
+  console.log("Display msgs: ",displayMsgs.content.question)
 
   return (
     <div className={styles.chat}>
@@ -59,17 +60,27 @@ export default function ChatPhase({
 
         {/* Message thread */}
         <div className={styles.messages}>
-          {displayMsgs.map((m, i) =>
-            m.role === "ai" ? (
+          {displayMsgs.map((m, i) => {
+            let content = m.content;
+            try {
+              const parsed = JSON.parse(m.content);
+              if (parsed.question) content = parsed.question;
+              else if (parsed.steps) content = null; 
+            } catch {
+            }
+
+            if (content === null) return null;
+
+            return m.role === "ai" ? (
               <div key={i} className={styles.msgAi}>
-                {m.content}
+                {content}
               </div>
             ) : (
               <div key={i} className={styles.msgUser}>
                 {m.content}
               </div>
-            )
-          )}
+            );
+          })}
 
           {loading && (
             <div className={styles.msgAi}>
