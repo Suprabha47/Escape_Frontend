@@ -43,6 +43,7 @@ export default function App() {
     streak,
     setGoal,
     setChatInput,
+    clearError,
     startChat,
     sendAnswer,
     completeStep,
@@ -58,10 +59,8 @@ export default function App() {
   }, [completeStep]);
 
   const dismissError = useCallback(() => {
-    // error is cleared when goal changes or explicitly dismissed
-    // useEscapeSession clears it on next startChat; here we just re-trigger setGoal
-    setGoal((g) => g);
-  }, [setGoal]);
+    clearError();
+  }, [clearError]);
 
   return (
     <div className={styles.root}>

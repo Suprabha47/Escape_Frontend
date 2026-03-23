@@ -18,6 +18,20 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { askClaude, detectJson, ClaudeError } from "../lib/claude.js";
 import { getOrCreateUserId, saveSession, completeSession, getStreak } from "../lib/api.js";
 
+/** If the model returns a question-dict, extract just the first question as plain text. */
+function extractQuestion(text) {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return text;
+  try {
+    const parsed = JSON.parse(match[0]);
+    const keys = Object.keys(parsed).sort();
+    if (keys.length > 0 && /^question/i.test(keys[0])) {
+      return parsed[keys[0]];
+    }
+  } catch {}
+  return text;
+}
+
 export const IDLE_TOTAL = 300; // 5 minutes
 
 export function useEscapeSession() {
@@ -25,6 +39,9 @@ export function useEscapeSession() {
   const [phase, setPhase] = useState("intake");
   const [goal, setGoal]   = useState("");
   const [error, setError] = useState(null); // surfaces to ErrorBanner
+
+  // Expose a stable clearError action
+  const clearError = useCallback(() => setError(null), []);
 
   // ── Chat ──────────────────────────────────────────────────────────────────
   const [messages, setMessages]         = useState([]);
@@ -125,7 +142,7 @@ export function useEscapeSession() {
     stuckCountRef.current = 0;
     setPhase("action");
 
-    // Best-effort: save to Supabase (non-blocking, non-fatal)
+    // Best-effort: persist session to Supabase via backend (non-fatal)
     if (userId) {
       saveSession({
         userId,
@@ -157,11 +174,13 @@ export function useEscapeSession() {
     try {
       const reply  = await askClaude(newMsgs);
       const parsed = detectJson(reply);
-      if (parsed?.steps) {
+      const isBlueprint = parsed?.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 5 && parsed.steps[0]?.text;
+      if (isBlueprint) {
         await enterAction(parsed, goal.trim());
       } else {
+        const display = extractQuestion(reply);
         setMessages([...newMsgs, { role: "assistant", content: reply }]);
-        setDisplayMsgs([{ role: "ai", content: reply }]);
+        setDisplayMsgs([{ role: "ai", content: display }]);
         setQCount(1);
       }
     } catch (e) {
@@ -198,12 +217,14 @@ export function useEscapeSession() {
 
       const reply  = await askClaude(toSend);
       const parsed = detectJson(reply);
+      const isBlueprint = parsed?.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 5 && parsed.steps[0]?.text;
 
-      if (parsed?.steps) {
+      if (isBlueprint) {
         await enterAction(parsed, goal);
       } else {
+        const display = extractQuestion(reply);
         setMessages([...nm, { role: "assistant", content: reply }]);
-        setDisplayMsgs([...nd, { role: "ai", content: reply }]);
+        setDisplayMsgs([...nd, { role: "ai", content: display }]);
         setQCount((q) => q + 1);
       }
     } catch (e) {
@@ -335,6 +356,7 @@ export function useEscapeSession() {
     // actions
     setGoal,
     setChatInput,
+    clearError,
     startChat,
     sendAnswer,
     completeStep,

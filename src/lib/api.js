@@ -1,12 +1,12 @@
 /**
  * lib/api.js
  * ==========
- * All calls to the FastAPI / Supabase backend.
+ * All calls to the FastAPI backend.
  * Base URL is read from VITE_API_BASE_URL (default: http://localhost:8000).
  *
  * Exports:
  *   getOrCreateUserId()           → Promise<string>   (persists to localStorage)
- *   saveSession(sessionData)      → Promise<string>   session DB id
+ *   saveSession(data)             → Promise<string>   Supabase session UUID
  *   completeSession(id, opts)     → Promise<{session, streak}>
  *   getStreak(userId)             → Promise<StreakData>
  */
@@ -38,7 +38,7 @@ export async function getOrCreateUserId() {
 // ---------------------------------------------------------------------------
 
 /**
- * Persist a newly generated session to Supabase immediately after intake.
+ * Persist a newly generated session to Supabase after intake completes.
  *
  * @param {{
  *   userId: string,
@@ -69,7 +69,7 @@ export async function saveSession(data) {
 /**
  * Mark a session complete and get back the recalculated streak.
  *
- * @param {string} sessionId   Supabase session UUID from saveSession()
+ * @param {string} sessionId   Supabase session UUID (from X-Db-Session-Id header on /intake)
  * @param {{ userId: string, stuckCount: number }} opts
  * @returns {Promise<{ session: object, streak: StreakData }>}
  */

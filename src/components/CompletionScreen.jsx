@@ -19,7 +19,7 @@ export default function CompletionScreen({ streak, onReset }) {
           <div className={styles.streakRow}>
             <span className={styles.streakNum}>{streak.current_streak}</span>
             <span className={styles.streakLabel}>
-              {streak.current_streak === 1 ? "day streak" : "day streak"}
+              {streak.current_streak === 1 ? "day streak" : "day streaks"}
             </span>
           </div>
           {streak.longest_streak > streak.current_streak && (

@@ -21,7 +21,7 @@ function IdleRing({ seconds }) {
   const fraction   = seconds / IDLE_TOTAL;
   const dashOffset = RING_CIRC * (1 - fraction);
   const isWarn     = fraction < 0.4;
-
+ 
   return (
     <svg
       className={styles.idleRing}
@@ -47,9 +47,9 @@ function IdleRing({ seconds }) {
 function ProgressDots({ steps, currentStep }) {
   return (
     <div className={styles.dots} role="progressbar" aria-valuenow={currentStep + 1} aria-valuemax={steps.length}>
-      {steps.map((_, i) => (
+      {steps.map((step, i) => (
         <div
-          key={i}
+          key={step.id ?? i}
           className={[
             styles.dot,
             i < currentStep  ? styles.dotDone    : "",

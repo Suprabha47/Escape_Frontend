@@ -75,13 +75,10 @@
 /* ── Step card ── */
 .cardWrap {
   position: relative;
-  min-height: 260px;
   text-align: center;
 }
 
 .card {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
