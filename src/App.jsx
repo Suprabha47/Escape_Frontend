@@ -14,17 +14,20 @@
 
 import { useRef, useCallback } from "react";
 import { useEscapeSession }  from "./hooks/useEscapeSession.js";
+import { useUsageLimit }     from "./hooks/useUsageLimit.js";
 
 import IntakeScreen    from "./components/IntakeScreen.jsx";
 import ChatPhase       from "./components/ChatPhase.jsx";
 import ActionMode      from "./components/ActionMode.jsx";
 import CompletionFlash from "./components/CompletionFlash.jsx";
 import CompletionScreen from "./components/CompletionScreen.jsx";
+import LimitScreen     from "./components/LimitScreen.jsx";
 
 import styles from "./App.module.css";
 
 export default function App() {
   const flashRef = useRef(null);
+  const { limitReached, incrementUsage } = useUsageLimit();
 
   const {
     phase,
@@ -62,6 +65,12 @@ export default function App() {
     clearError();
   }, [clearError]);
 
+  // Increment usage counter when a session actually kicks off (chat phase starts)
+  const handleStart = useCallback(() => {
+    incrementUsage();
+    startChat();
+  }, [incrementUsage, startChat]);
+
   return (
     <div className={styles.root}>
       {/* Film grain overlay */}
@@ -70,13 +79,16 @@ export default function App() {
       {/* Burst canvas — always mounted so it never misses a flash */}
       <CompletionFlash ref={flashRef} />
 
+      {/* ── Limit gate ── */}
+      {limitReached && <LimitScreen />}
+
       {/* ── Phase routing ── */}
 
-      {phase === "intake" && (
+      {!limitReached && phase === "intake" && (
         <IntakeScreen
           goal={goal}
           setGoal={setGoal}
-          onSubmit={startChat}
+          onSubmit={handleStart}
           loading={loading}
           error={error}
           onDismissError={dismissError}

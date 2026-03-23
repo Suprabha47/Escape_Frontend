@@ -1,0 +1,44 @@
+.wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeIn 1.2s ease;
+}
+
+.logo {
+  font-family: var(--serif);
+  font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+
+.divider {
+  width: 1px;
+  height: 3rem;
+  background: var(--ink-void);
+  margin: 2.5rem auto;
+}
+
+.msg {
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--ink-muted);
+  text-align: center;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
+}
+
+.sub {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-ghost);
+  text-transform: uppercase;
+  text-align: center;
+}
