@@ -113,7 +113,7 @@ export async function askClaude(messages) {
         ...messages,
       ],
       max_completion_tokens: 1500,
-      temperature: 0.7,
+      // temperature: 1,
     }),
   });
 
