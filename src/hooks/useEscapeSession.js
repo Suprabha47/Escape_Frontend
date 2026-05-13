@@ -174,7 +174,7 @@ export function useEscapeSession() {
     try {
       const reply  = await askClaude(newMsgs);
       const parsed = detectJson(reply);
-      const isBlueprint = parsed?.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 5 && parsed.steps[0]?.text;
+      const isBlueprint = parsed?.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 1 && parsed.steps[0]?.text;
       if (isBlueprint) {
         await enterAction(parsed, goal.trim());
       } else {
@@ -217,7 +217,7 @@ export function useEscapeSession() {
 
       const reply  = await askClaude(toSend);
       const parsed = detectJson(reply);
-      const isBlueprint = parsed?.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 5 && parsed.steps[0]?.text;
+      const isBlueprint = parsed?.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 1 && parsed.steps[0]?.text;
 
       if (isBlueprint) {
         await enterAction(parsed, goal);
