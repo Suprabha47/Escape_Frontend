@@ -15,21 +15,48 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { askClaude, detectJson, ClaudeError } from "../lib/claude.js";
+import { askClaude, askStuck, detectJson, ClaudeError } from "../lib/claude.js";
 import { getOrCreateUserId, saveSession, completeSession, getStreak } from "../lib/api.js";
 
-/** If the model returns a question-dict, extract just the first question as plain text. */
-function extractQuestion(text) {
+/**
+ * Extracts question text and clickable options array from raw AI output or JSON.
+ */
+function extractQuestionData(text, qIndex = 0) {
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return text;
-  try {
-    const parsed = JSON.parse(match[0]);
-    const keys = Object.keys(parsed).sort();
-    if (keys.length > 0 && /^question/i.test(keys[0])) {
-      return parsed[keys[0]];
-    }
-  } catch {}
-  return text;
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (parsed.question) {
+        return {
+          question: parsed.question,
+          options: Array.isArray(parsed.options) && parsed.options.length > 0 ? parsed.options : []
+        };
+      }
+      const keys = Object.keys(parsed).sort();
+      if (keys.length > 0 && /^question/i.test(keys[0])) {
+        return {
+          question: parsed[keys[0]],
+          options: Array.isArray(parsed.options) ? parsed.options : []
+        };
+      }
+    } catch {}
+  }
+
+  // Raw plain text cleanup
+  const clean = text.replace(/^[\s"'{]+|[\s"'}]+\s*$/g, "").trim();
+
+  // Smart default options if AI didn't provide any
+  let fallbackOptions = [];
+  if (qIndex === 5) {
+    fallbackOptions = ["15 min quick sprint", "30 minutes solid", "45 to 60 minutes", "Open-ended deep focus"];
+  } else if (qIndex === 6) {
+    fallbackOptions = ["Drained / Foggy (1-3)", "Neutral / Steady (4-6)", "High Energy / Focused (7-10)"];
+  }
+
+  return {
+    question: clean,
+    options: fallbackOptions
+  };
 }
 
 export const IDLE_TOTAL = 300; // 5 minutes
@@ -74,15 +101,23 @@ export function useEscapeSession() {
   const currentStepRef = useRef(0);
   useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
 
-  // ── Bootstrap: get/create anonymous user on mount ────────────────────────
+  // ── Bootstrap: get/create anonymous user & streak on mount ───────────────
   useEffect(() => {
     getOrCreateUserId()
-      .then(setUserId)
+      .then((id) => {
+        setUserId(id);
+        getStreak(id)
+          .then((s) => {
+            if (s) setStreak(s);
+          })
+          .catch(() => {});
+      })
       .catch(() => {
         // Non-fatal: app works without Supabase, streaks just won't persist
         console.warn("Escape: could not connect to backend — streaks disabled.");
       });
   }, []);
+
 
   // ──────────────────────────────────────────────────────────────────────────
   // Idle timer — resets whenever phase or currentStep changes
@@ -178,9 +213,9 @@ export function useEscapeSession() {
       if (isBlueprint) {
         await enterAction(parsed, goal.trim());
       } else {
-        const display = extractQuestion(reply);
+        const data = extractQuestionData(reply, 1);
         setMessages([...newMsgs, { role: "assistant", content: reply }]);
-        setDisplayMsgs([{ role: "ai", content: display }]);
+        setDisplayMsgs([{ role: "ai", content: data.question, options: data.options }]);
         setQCount(1);
       }
     } catch (e) {
@@ -195,12 +230,13 @@ export function useEscapeSession() {
   }, [goal, loading, enterAction]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // sendAnswer
+  // sendAnswer — supports typing in textarea or clicking an option pill
   // ──────────────────────────────────────────────────────────────────────────
-  const sendAnswer = useCallback(async () => {
-    if (!chatInput.trim() || loading) return;
+  const sendAnswer = useCallback(async (explicitAnswer) => {
+    const rawAnswer = typeof explicitAnswer === "string" ? explicitAnswer : chatInput;
+    if (!rawAnswer.trim() || loading) return;
 
-    const answer = chatInput.trim();
+    const answer = rawAnswer.trim();
     setChatInput("");
 
     const nd = [...displayMsgs, { role: "user", content: answer }];
@@ -211,7 +247,8 @@ export function useEscapeSession() {
     setLoading(true);
 
     try {
-      const toSend = qCount >= 2
+      // After question 6 has been answered, request the blueprint
+      const toSend = qCount >= 6
         ? [...nm, { role: "user", content: "Generate the atomic steps JSON now." }]
         : nm;
 
@@ -222,10 +259,11 @@ export function useEscapeSession() {
       if (isBlueprint) {
         await enterAction(parsed, goal);
       } else {
-        const display = extractQuestion(reply);
+        const nextQCount = qCount + 1;
+        const data = extractQuestionData(reply, nextQCount);
         setMessages([...nm, { role: "assistant", content: reply }]);
-        setDisplayMsgs([...nd, { role: "ai", content: display }]);
-        setQCount((q) => q + 1);
+        setDisplayMsgs([...nd, { role: "ai", content: data.question, options: data.options }]);
+        setQCount(nextQCount);
       }
     } catch (e) {
       setDisplayMsgs((d) => [
@@ -236,6 +274,35 @@ export function useEscapeSession() {
       setLoading(false);
     }
   }, [chatInput, loading, displayMsgs, messages, qCount, goal, enterAction]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // generateNow — early bypass to jump straight to steps from turn 3 onwards
+  // ──────────────────────────────────────────────────────────────────────────
+  const generateNow = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+    const nm = [...messages, { role: "user", content: "Generate the atomic steps JSON now." }];
+    setMessages(nm);
+
+    try {
+      const reply = await askClaude(nm);
+      const parsed = detectJson(reply);
+      const isBlueprint = parsed?.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 1 && parsed.steps[0]?.text;
+      if (isBlueprint) {
+        await enterAction(parsed, goal);
+      } else {
+        // Fallback: parse whatever steps exist
+        await enterAction({ steps: [] }, goal);
+      }
+    } catch {
+      setDisplayMsgs((d) => [
+        ...d,
+        { role: "ai", content: "Could not generate steps right now. Please try again." }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, messages, goal, enterAction]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // completeStep — returns completed index for CompletionFlash
@@ -250,19 +317,33 @@ export function useEscapeSession() {
       setTimeout(async () => {
         setPhase("complete");
 
-        // Best-effort Supabase completion + streak recalc
-        if (sessionDbId && userId) {
+        // Complete session and recalculate streak
+        if (userId) {
           try {
-            const result = await completeSession(sessionDbId, {
+            let activeDbId = sessionDbId;
+            if (!activeDbId) {
+              activeDbId = await saveSession({
+                userId,
+                goal: goal || "Completed session",
+                steps,
+                energyLevel: 5,
+                lowPowerMode: false,
+                fiveSecondStart: "",
+              });
+              setSessionDbId(activeDbId);
+            }
+            const result = await completeSession(activeDbId, {
               userId,
               stuckCount: stuckCountRef.current,
             });
-            setStreak(result.streak);
+            if (result?.streak) {
+              setStreak(result.streak);
+            }
           } catch (e) {
             // Fall back to a plain GET if the complete endpoint fails
             try {
               const s = await getStreak(userId);
-              setStreak(s);
+              if (s) setStreak(s);
             } catch {}
           }
         }
@@ -275,7 +356,7 @@ export function useEscapeSession() {
     }
 
     return completedIndex;
-  }, [currentStep, steps.length, advanceTo, sessionDbId, userId]);
+  }, [currentStep, steps, advanceTo, sessionDbId, userId, goal]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // handleStuck
@@ -287,23 +368,21 @@ export function useEscapeSession() {
     stuckCountRef.current += 1;
 
     const stuckStep = steps[currentStep];
+    if (!stuckStep) {
+      setStuckLoading(false);
+      return;
+    }
 
     try {
-      const reply = await askClaude([
-        ...messages,
-        {
-          role: "user",
-          content: `I'm stuck on: "${stuckStep.text}". Break into exactly 3 smaller sub-steps. JSON only: {"substeps":[...]}`,
-        },
-      ]);
-
-      const parsed = detectJson(reply);
-      if (parsed?.substeps) {
+      const res = await askStuck(currentStep + 1, stuckStep.text, sessionDbId);
+      if (res?.substeps && res.substeps.length > 0) {
         const updated = [...steps];
-        updated.splice(currentStep, 1,
-          ...parsed.substeps.map((s, i) => ({
-            id:       `sub-${currentStep}-${i}`,
-            text:     s.text,
+        updated.splice(
+          currentStep,
+          1,
+          ...res.substeps.map((s, i) => ({
+            id: `sub-${currentStep}-${i}`,
+            text: s.text,
             duration: s.duration ?? "< 1 min",
           }))
         );
@@ -315,7 +394,7 @@ export function useEscapeSession() {
     } finally {
       setStuckLoading(false);
     }
-  }, [stuckLoading, steps, currentStep, messages, resetIdle]);
+  }, [stuckLoading, steps, currentStep, sessionDbId, resetIdle]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // reset
@@ -352,6 +431,8 @@ export function useEscapeSession() {
     idleSeconds,
     idleSurfaced,
     streak,
+    userId,
+    qCount,
     stuckCount: stuckCountRef.current,
     // actions
     setGoal,
@@ -359,6 +440,7 @@ export function useEscapeSession() {
     clearError,
     startChat,
     sendAnswer,
+    generateNow,
     completeStep,
     handleStuck,
     resetIdle,

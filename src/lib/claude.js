@@ -68,15 +68,12 @@ Reply ONLY with JSON:
 Sub-steps must be smaller in every dimension than the parent step.`;
 
 // ---------------------------------------------------------------------------
-// Config from env
+// Config from env — routes to FastAPI backend
 // ---------------------------------------------------------------------------
-const ENDPOINT   = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT?.replace(/\/$/, "");
-const API_KEY    = import.meta.env.VITE_AZURE_OPENAI_KEY;
-const DEPLOYMENT = import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT ?? "gpt-5.4-nano";
-const API_VERSION = "2024-12-01-preview";
+const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 // ---------------------------------------------------------------------------
-// Core call — uses Azure OpenAI REST API directly (no SDK needed in browser)
+// Core call — routes securely through the FastAPI backend
 // ---------------------------------------------------------------------------
 
 /**
@@ -84,49 +81,66 @@ const API_VERSION = "2024-12-01-preview";
  * @returns {Promise<string>}
  */
 export async function askClaude(messages) {
-  if (!API_KEY) {
+  try {
+    const res = await fetch(`${BASE}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ messages }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ClaudeError(
+        err?.detail ?? `HTTP ${res.status}`,
+        res.status
+      );
+    }
+
+    const data = await res.json();
+    return data.reply ?? "";
+  } catch (err) {
+    if (err instanceof ClaudeError) throw err;
     throw new ClaudeError(
-      "VITE_AZURE_OPENAI_KEY is not set. Add it to .env.local and restart Vite.",
+      "Could not connect to Escape backend. Please ensure the backend server is running.",
       0,
-      "missing_key"
+      "connection_error"
     );
   }
-  if (!ENDPOINT) {
-    throw new ClaudeError(
-      "VITE_AZURE_OPENAI_ENDPOINT is not set. Add it to .env.local and restart Vite.",
-      0,
-      "missing_key"
-    );
-  }
+}
 
-  const url = `${ENDPOINT}/openai/deployments/${DEPLOYMENT}/chat/completions?api-version=${API_VERSION}`;
+/**
+ * Break down a stuck step using backend /stuck
+ * @param {number} stepId
+ * @param {string} stepText
+ * @param {string|null} sessionId
+ * @returns {Promise<{parent_step_id: number, substeps: Array<{id: number, text: string, duration: string}>}>}
+ */
+export async function askStuck(stepId, stepText, sessionId = null) {
+  try {
+    const res = await fetch(`${BASE}/stuck`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        step_id: stepId,
+        step_text: stepText,
+        session_id: sessionId,
+      }),
+    });
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": API_KEY,
-    },
-    body: JSON.stringify({
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages,
+    if (!res.ok) throw new Error("Stuck call failed");
+    return await res.json();
+  } catch {
+    return {
+      parent_step_id: stepId,
+      substeps: [
+        { id: 1, text: `Focus on just the first tiny mechanical part of: ${stepText.slice(0, 35)}`, duration: "< 1 min" },
+        { id: 2, text: "Spend 60 seconds on a rough start without judging", duration: "< 1 min" },
+        { id: 3, text: "Take 2 minutes to bring this piece to a close", duration: "2 min" },
       ],
-      max_completion_tokens: 5000,
-      // temperature: 1,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ClaudeError(
-      err?.error?.message ?? `HTTP ${res.status}`,
-      res.status
-    );
+    };
   }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
 }
 
 // ---------------------------------------------------------------------------
@@ -159,4 +173,4 @@ export class ClaudeError extends Error {
     this.status = status;
     this.code   = code ?? null;
   }
-}
+}

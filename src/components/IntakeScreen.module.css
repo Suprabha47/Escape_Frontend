@@ -10,7 +10,108 @@
 
 .header {
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.streakBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ink-void);
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 0;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+
+.streakBadge:hover {
+  border-color: var(--ink-ghost);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.profileBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ink-void);
+  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.profileBtn:hover {
+  border-color: var(--ink-ghost);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.profileIcon {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.streakBadgeActive {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.06);
+  color: #f59e0b;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.08);
+}
+
+.streakIcon {
+  font-size: 0.85rem;
+  line-height: 1;
+  filter: grayscale(1) opacity(0.6);
+  transition: filter 0.3s ease;
+}
+
+.streakBadgeActive .streakIcon {
+  filter: grayscale(0) opacity(1) drop-shadow(0 0 6px rgba(245, 158, 11, 0.5));
+}
+
+.streakCount {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.streakBadgeActive .streakCount {
+  color: #fbbf24;
+}
+
+.streakLabel {
+  color: inherit;
+}
+
+.streakBest {
+  color: var(--ink-ghost);
+  font-size: 0.6rem;
+  opacity: 0.8;
 }
 
 .logo {

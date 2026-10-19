@@ -92,6 +92,33 @@ export async function getStreak(userId) {
   return res.json();
 }
 
+/**
+ * Fetch all past sessions for a user.
+ *
+ * @param {string} userId
+ * @param {{ completedOnly?: boolean, limit?: number }} [opts]
+ * @returns {Promise<{ user_id: string, sessions: Array<object>, total: number }>}
+ */
+export async function getUserSessions(userId, { completedOnly = false, limit = 50 } = {}) {
+  const query = new URLSearchParams({
+    completed_only: String(completedOnly),
+    limit: String(limit),
+  });
+  const res = await apiFetch(`/users/${userId}/sessions?${query}`);
+  return res.json();
+}
+
+/**
+ * Fetch full session details including the steps JSON.
+ *
+ * @param {string} sessionId
+ * @returns {Promise<object>}
+ */
+export async function getSessionDetails(sessionId) {
+  const res = await apiFetch(`/sessions/${sessionId}`);
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Internal fetch wrapper
 // ---------------------------------------------------------------------------

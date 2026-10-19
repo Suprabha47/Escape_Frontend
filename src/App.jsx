@@ -12,7 +12,7 @@
  * All API calls live in lib/claude.js and lib/api.js.
  */
 
-import { useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useEscapeSession }  from "./hooks/useEscapeSession.js";
 import { useUsageLimit }     from "./hooks/useUsageLimit.js";
 
@@ -22,12 +22,14 @@ import ActionMode      from "./components/ActionMode.jsx";
 import CompletionFlash from "./components/CompletionFlash.jsx";
 import CompletionScreen from "./components/CompletionScreen.jsx";
 import LimitScreen     from "./components/LimitScreen.jsx";
+import ProfileModal    from "./components/ProfileModal.jsx";
 
 import styles from "./App.module.css";
 
 export default function App() {
   const flashRef = useRef(null);
   const { limitReached, incrementUsage } = useUsageLimit();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const {
     phase,
@@ -44,11 +46,14 @@ export default function App() {
     idleSeconds,
     idleSurfaced,
     streak,
+    userId,
+    qCount,
     setGoal,
     setChatInput,
     clearError,
     startChat,
     sendAnswer,
+    generateNow,
     completeStep,
     handleStuck,
     resetIdle,
@@ -71,6 +76,14 @@ export default function App() {
     startChat();
   }, [incrementUsage, startChat]);
 
+  const handleOpenProfile = useCallback(() => {
+    setProfileOpen(true);
+  }, []);
+
+  const handleCloseProfile = useCallback(() => {
+    setProfileOpen(false);
+  }, []);
+
   return (
     <div className={styles.root}>
       {/* Film grain overlay */}
@@ -78,6 +91,14 @@ export default function App() {
 
       {/* Burst canvas — always mounted so it never misses a flash */}
       <CompletionFlash ref={flashRef} />
+
+      {/* Profile & History Modal */}
+      <ProfileModal
+        isOpen={profileOpen}
+        onClose={handleCloseProfile}
+        userId={userId}
+        streak={streak}
+      />
 
       {/* ── Limit gate ── */}
       {limitReached && <LimitScreen />}
@@ -91,7 +112,9 @@ export default function App() {
           onSubmit={handleStart}
           loading={loading}
           error={error}
+          streak={streak}
           onDismissError={dismissError}
+          onOpenProfile={handleOpenProfile}
         />
       )}
 
@@ -102,6 +125,8 @@ export default function App() {
           chatInput={chatInput}
           setChatInput={setChatInput}
           onSend={sendAnswer}
+          onGenerateNow={generateNow}
+          qCount={qCount}
           loading={loading}
         />
       )}
@@ -122,7 +147,11 @@ export default function App() {
       )}
 
       {phase === "complete" && (
-        <CompletionScreen streak={streak} onReset={reset} />
+        <CompletionScreen
+          streak={streak}
+          onReset={reset}
+          onOpenProfile={handleOpenProfile}
+        />
       )}
     </div>
   );
