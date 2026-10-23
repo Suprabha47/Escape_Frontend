@@ -3,12 +3,10 @@
  * ==============
  * Phase: "action"
  * Shows one step at a time. Handles idle ring, step transitions,
- * done button, stuck button, and dot progress map.
- *
- * Does NOT own the burst animation — that lives in CompletionFlash,
- * triggered by App.jsx when completeStep() returns the completed index.
+ * done button, stuck button, dot progress map, step editing, and skipping.
  */
 
+import { useState, useRef, useEffect } from "react";
 import styles from "./ActionMode.module.css";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -21,7 +19,7 @@ function IdleRing({ seconds }) {
   const fraction   = seconds / IDLE_TOTAL;
   const dashOffset = RING_CIRC * (1 - fraction);
   const isWarn     = fraction < 0.4;
- 
+
   return (
     <svg
       className={styles.idleRing}
@@ -70,24 +68,58 @@ export default function ActionMode({
   idleSeconds,
   idleSurfaced,
   stuckLoading,
+  lowPowerMode = false,
   onComplete,
   onStuck,
+  onEditStep,
+  onSkipStep,
   onIdleReset,
 }) {
   const step = steps[visibleStep] ?? steps[currentStep];
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+
+  // Monotonic progress: progress bar never regresses backwards when sub-steps are added
+  const maxProgressRef = useRef(0);
+  const rawProgress = steps.length ? (currentStep / steps.length) * 100 : 0;
+  const progress = Math.min(100, Math.max(maxProgressRef.current, rawProgress));
+  useEffect(() => {
+    maxProgressRef.current = Math.max(maxProgressRef.current, rawProgress);
+  }, [rawProgress]);
+
+  useEffect(() => {
+    if (step) {
+      setEditText(step.text);
+      setIsEditing(false);
+    }
+  }, [step]);
+
   if (!step) return null;
 
-  const progress = steps.length ? (currentStep / steps.length) * 100 : 0;
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (editText.trim() && onEditStep) {
+      onEditStep(visibleStep, editText.trim());
+      setIsEditing(false);
+    }
+  };
 
   return (
     <div className={styles.action} onClick={onIdleReset}>
       <div className={styles.inner}>
 
-        {/* ── Top bar: step counter + idle ring ── */}
+        {/* ── Top bar: step counter, low-power badge + idle ring ── */}
         <div className={styles.topBar}>
-          <p className={styles.counter}>
-            <em>{currentStep + 1}</em> of <em>{steps.length}</em>
-          </p>
+          <div className={styles.counterCluster}>
+            <p className={styles.counter}>
+              <em>{currentStep + 1}</em> of <em>{steps.length}</em>
+            </p>
+            {lowPowerMode && (
+              <span className={styles.lowPowerBadge} title="Low-Power Mode: smaller steps & paced breathers">
+                🌙 low-power
+              </span>
+            )}
+          </div>
 
           <div className={styles.idleCluster}>
             {idleSurfaced && (
@@ -107,7 +139,34 @@ export default function ActionMode({
               {String(visibleStep + 1).padStart(2, "0")}
             </div>
 
-            <p className={styles.stepText}>{step.text}</p>
+            {isEditing ? (
+              <form onSubmit={handleSaveEdit} className={styles.editForm}>
+                <textarea
+                  className={styles.editInput}
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  autoFocus
+                  rows={2}
+                />
+                <div className={styles.editActions}>
+                  <button type="submit" className={styles.saveEditBtn}>save ✓</button>
+                  <button type="button" className={styles.cancelEditBtn} onClick={() => setIsEditing(false)}>cancel</button>
+                </div>
+              </form>
+            ) : (
+              <div className={styles.textRow}>
+                <p className={styles.stepText}>{step.text}</p>
+                <button
+                  type="button"
+                  className={styles.editPencilBtn}
+                  onClick={() => setIsEditing(true)}
+                  title="Edit this step wording"
+                  aria-label="Edit step"
+                >
+                  ✎
+                </button>
+              </div>
+            )}
 
             {step.duration && (
               <p className={styles.stepDuration}>{step.duration}</p>
@@ -133,6 +192,17 @@ export default function ActionMode({
               >
                 {stuckLoading ? "thinking..." : "i'm stuck"}
               </button>
+
+              {onSkipStep && (
+                <button
+                  type="button"
+                  className={styles.skipBtn}
+                  onClick={() => onSkipStep(visibleStep)}
+                  title="Skip this step if not applicable"
+                >
+                  skip →
+                </button>
+              )}
             </div>
           </div>
         </div>

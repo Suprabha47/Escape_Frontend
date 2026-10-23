@@ -217,3 +217,119 @@
   background: linear-gradient(90deg, #242220, var(--ink-ghost));
   transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ── Enhanced Action Controls ── */
+.counterCluster {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.lowPowerBadge {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  color: #7eb8a4;
+  background: rgba(126, 184, 164, 0.08);
+  border: 1px solid rgba(126, 184, 164, 0.2);
+  padding: 0.2rem 0.5rem;
+  text-transform: uppercase;
+}
+
+.textRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  position: relative;
+  max-width: 520px;
+}
+
+.editPencilBtn {
+  background: transparent;
+  border: none;
+  color: var(--ink-void);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.3rem;
+  opacity: 0.35;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.editPencilBtn:hover {
+  opacity: 1;
+  color: var(--ink-ghost);
+}
+
+.editForm {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.editInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--ink-void);
+  color: var(--ink);
+  font-size: 1.15rem;
+  font-family: inherit;
+  font-style: italic;
+  padding: 0.6rem 0.8rem;
+  resize: vertical;
+  text-align: center;
+  outline: none;
+}
+
+.editInput:focus {
+  border-color: var(--ink-ghost);
+}
+
+.editActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.saveEditBtn {
+  background: transparent;
+  border: 1px solid var(--ink-ghost);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.4rem 1.2rem;
+  cursor: pointer;
+}
+
+.cancelEditBtn {
+  background: transparent;
+  border: none;
+  color: var(--ink-trace);
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.skipBtn {
+  background: transparent;
+  border: none;
+  color: var(--ink-trace);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.9rem 0;
+  transition: color 0.3s;
+}
+
+.skipBtn:hover {
+  color: var(--ink-ghost);
+}

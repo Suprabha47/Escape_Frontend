@@ -512,3 +512,28 @@
   text-transform: uppercase;
   flex-shrink: 0;
 }
+
+/* ── Session Delete & Meta Row ── */
+.sessionRightMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.deleteBtn {
+  background: transparent;
+  border: none;
+  color: var(--ink-void);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  border-radius: 3px;
+  transition: color 0.2s, background 0.2s;
+  opacity: 0.4;
+}
+
+.deleteBtn:hover {
+  opacity: 1;
+  color: #c47a7a;
+  background: rgba(196, 122, 122, 0.08);
+}

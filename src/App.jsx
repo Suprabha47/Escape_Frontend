@@ -48,6 +48,9 @@ export default function App() {
     streak,
     userId,
     qCount,
+    lowPowerMode,
+    editStep,
+    skipStep,
     setGoal,
     setChatInput,
     clearError,
@@ -140,8 +143,11 @@ export default function App() {
           idleSeconds={idleSeconds}
           idleSurfaced={idleSurfaced}
           stuckLoading={stuckLoading}
+          lowPowerMode={lowPowerMode}
           onComplete={handleComplete}
           onStuck={handleStuck}
+          onEditStep={editStep}
+          onSkipStep={skipStep}
           onIdleReset={resetIdle}
         />
       )}

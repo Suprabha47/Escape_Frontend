@@ -5,18 +5,25 @@
  *
  * Phase machine:  intake → chat → action → complete
  *
- * Fixes applied vs. previous version:
- *   1. visibleStep sync effect uses a ref to avoid reading stale currentStep.
- *   2. Supabase user is fetched on mount; session is saved after intake and
- *      completed (with streak recalc) when the last step is done.
- *   3. streak and sessionDbId are exposed so App/Complete screen can display them.
- *   4. ClaudeError with code "missing_key" surfaces a readable error message
- *      rather than a silent "Connection failed."
+ * Features:
+ *   1. Synchronous state machine with ref mirroring to prevent stale closures.
+ *   2. Supabase/SQLite persistence with live sub-step synchronization.
+ *   3. Session crash recovery and resumption via localStorage.
+ *   4. Low-Power Mode tracking and pacing cues.
+ *   5. Web Audio API chime on step checkoff and victory fanfare.
+ *   6. Step editing and skipping capabilities.
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { askClaude, askStuck, detectJson, ClaudeError } from "../lib/claude.js";
-import { getOrCreateUserId, saveSession, completeSession, getStreak } from "../lib/api.js";
+import {
+  getOrCreateUserId,
+  saveSession,
+  completeSession,
+  getStreak,
+  updateSessionSteps,
+} from "../lib/api.js";
+import { playStepChime, playCompleteFanfare } from "../lib/sound.js";
 
 /**
  * Extracts question text and clickable options array from raw AI output or JSON.
@@ -29,14 +36,14 @@ function extractQuestionData(text, qIndex = 0) {
       if (parsed.question) {
         return {
           question: parsed.question,
-          options: Array.isArray(parsed.options) && parsed.options.length > 0 ? parsed.options : []
+          options: Array.isArray(parsed.options) && parsed.options.length > 0 ? parsed.options : [],
         };
       }
       const keys = Object.keys(parsed).sort();
       if (keys.length > 0 && /^question/i.test(keys[0])) {
         return {
           question: parsed[keys[0]],
-          options: Array.isArray(parsed.options) ? parsed.options : []
+          options: Array.isArray(parsed.options) ? parsed.options : [],
         };
       }
     } catch {}
@@ -55,19 +62,19 @@ function extractQuestionData(text, qIndex = 0) {
 
   return {
     question: clean,
-    options: fallbackOptions
+    options: fallbackOptions,
   };
 }
 
 export const IDLE_TOTAL = 300; // 5 minutes
+const ACTIVE_SESSION_KEY = "escape_active_session";
 
 export function useEscapeSession() {
   // ── Phase & goal ──────────────────────────────────────────────────────────
   const [phase, setPhase] = useState("intake");
   const [goal, setGoal]   = useState("");
-  const [error, setError] = useState(null); // surfaces to ErrorBanner
+  const [error, setError] = useState(null);
 
-  // Expose a stable clearError action
   const clearError = useCallback(() => setError(null), []);
 
   // ── Chat ──────────────────────────────────────────────────────────────────
@@ -81,6 +88,7 @@ export function useEscapeSession() {
   const [currentStep, setCurrentStep]   = useState(0);
   const [visibleStep, setVisibleStep]   = useState(0);
   const [cardAnim, setCardAnim]         = useState("enter");
+  const [lowPowerMode, setLowPowerMode] = useState(false);
 
   // ── Loading ───────────────────────────────────────────────────────────────
   const [loading, setLoading]           = useState(false);
@@ -93,11 +101,11 @@ export function useEscapeSession() {
 
   // ── Supabase / persistence ────────────────────────────────────────────────
   const [userId, setUserId]             = useState(null);
-  const [sessionDbId, setSessionDbId]   = useState(null); // Supabase session UUID
-  const [streak, setStreak]             = useState(null);  // { current_streak, longest_streak }
+  const [sessionDbId, setSessionDbId]   = useState(null);
+  const [streak, setStreak]             = useState(null);
   const stuckCountRef                   = useRef(0);
 
-  // ── Ref mirror of currentStep (fixes stale closure in visibleStep effect) ─
+  // ── Ref mirror of currentStep (fixes stale closure) ──────────────────────
   const currentStepRef = useRef(0);
   useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
 
@@ -113,14 +121,71 @@ export function useEscapeSession() {
           .catch(() => {});
       })
       .catch(() => {
-        // Non-fatal: app works without Supabase, streaks just won't persist
         console.warn("Escape: could not connect to backend — streaks disabled.");
       });
   }, []);
 
+  // ── Session Crash Recovery: Restore from localStorage on mount ────────────
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_SESSION_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.phase === "action" && Array.isArray(data.steps) && data.steps.length > 0) {
+          setPhase("action");
+          setGoal(data.goal || "");
+          setSteps(data.steps);
+          setCurrentStep(data.currentStep || 0);
+          setVisibleStep(data.currentStep || 0);
+          setSessionDbId(data.sessionDbId || null);
+          setLowPowerMode(Boolean(data.lowPowerMode));
+        } else if (data.phase === "chat" && Array.isArray(data.displayMsgs) && data.displayMsgs.length > 0) {
+          setPhase("chat");
+          setGoal(data.goal || "");
+          setMessages(data.messages || []);
+          setDisplayMsgs(data.displayMsgs || []);
+          setQCount(data.qCount || 1);
+        }
+      }
+    } catch (e) {
+      console.warn("Escape: session restoration failed", e);
+    }
+  }, []);
+
+  // ── Session Auto-Sync to localStorage ────────────────────────────────────
+  useEffect(() => {
+    try {
+      if (phase === "action" && steps.length > 0) {
+        localStorage.setItem(
+          ACTIVE_SESSION_KEY,
+          JSON.stringify({
+            phase: "action",
+            goal,
+            steps,
+            currentStep,
+            sessionDbId,
+            lowPowerMode,
+          })
+        );
+      } else if (phase === "chat" && displayMsgs.length > 0) {
+        localStorage.setItem(
+          ACTIVE_SESSION_KEY,
+          JSON.stringify({
+            phase: "chat",
+            goal,
+            messages,
+            displayMsgs,
+            qCount,
+          })
+        );
+      } else if (phase === "complete" || phase === "intake") {
+        localStorage.removeItem(ACTIVE_SESSION_KEY);
+      }
+    } catch {}
+  }, [phase, goal, steps, currentStep, sessionDbId, lowPowerMode, messages, displayMsgs, qCount]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Idle timer — resets whenever phase or currentStep changes
+  // Idle timer
   // ──────────────────────────────────────────────────────────────────────────
   const resetIdle = useCallback(() => {
     setIdleSeconds(IDLE_TOTAL);
@@ -156,9 +221,6 @@ export function useEscapeSession() {
     resetIdle();
   }, [resetIdle]);
 
-  // Sync visibleStep when entering action phase for the first time.
-  // Uses ref to read currentStep without adding it as a dependency
-  // (advanceTo owns all mid-session updates).
   useEffect(() => {
     if (phase === "action") {
       setVisibleStep(currentStepRef.current);
@@ -170,19 +232,20 @@ export function useEscapeSession() {
   // Enter action mode + optionally save session to Supabase
   // ──────────────────────────────────────────────────────────────────────────
   const enterAction = useCallback(async (parsed, goalText) => {
-    setSteps(parsed.steps);
+    const rawSteps = parsed.steps || parsed.micro_steps || [];
+    setSteps(rawSteps);
     setCurrentStep(0);
     setVisibleStep(0);
     setCardAnim("enter");
+    setLowPowerMode(Boolean(parsed.low_power_mode));
     stuckCountRef.current = 0;
     setPhase("action");
 
-    // Best-effort: persist session to Supabase via backend (non-fatal)
     if (userId) {
       saveSession({
         userId,
         goal: goalText,
-        steps: parsed.steps,
+        steps: rawSteps,
         energyLevel: parsed.energy_level ?? 5,
         lowPowerMode: parsed.low_power_mode ?? false,
         fiveSecondStart: parsed.five_second_start ?? "",
@@ -221,7 +284,7 @@ export function useEscapeSession() {
     } catch (e) {
       const msg = e instanceof ClaudeError && e.code === "missing_key"
         ? e.message
-        : "Connection failed. Please check your API key and try again.";
+        : "Connection failed. Please ensure the backend is running.";
       setError(msg);
       setPhase("intake");
     } finally {
@@ -230,7 +293,7 @@ export function useEscapeSession() {
   }, [goal, loading, enterAction]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // sendAnswer — supports typing in textarea or clicking an option pill
+  // sendAnswer
   // ──────────────────────────────────────────────────────────────────────────
   const sendAnswer = useCallback(async (explicitAnswer) => {
     const rawAnswer = typeof explicitAnswer === "string" ? explicitAnswer : chatInput;
@@ -247,7 +310,6 @@ export function useEscapeSession() {
     setLoading(true);
 
     try {
-      // After question 6 has been answered, request the blueprint
       const toSend = qCount >= 6
         ? [...nm, { role: "user", content: "Generate the atomic steps JSON now." }]
         : nm;
@@ -276,7 +338,7 @@ export function useEscapeSession() {
   }, [chatInput, loading, displayMsgs, messages, qCount, goal, enterAction]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // generateNow — early bypass to jump straight to steps from turn 3 onwards
+  // generateNow — early bypass
   // ──────────────────────────────────────────────────────────────────────────
   const generateNow = useCallback(async () => {
     if (loading) return;
@@ -291,13 +353,12 @@ export function useEscapeSession() {
       if (isBlueprint) {
         await enterAction(parsed, goal);
       } else {
-        // Fallback: parse whatever steps exist
         await enterAction({ steps: [] }, goal);
       }
     } catch {
       setDisplayMsgs((d) => [
         ...d,
-        { role: "ai", content: "Could not generate steps right now. Please try again." }
+        { role: "ai", content: "Could not generate steps right now. Please try again." },
       ]);
     } finally {
       setLoading(false);
@@ -305,7 +366,7 @@ export function useEscapeSession() {
   }, [loading, messages, goal, enterAction]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // completeStep — returns completed index for CompletionFlash
+  // completeStep
   // ──────────────────────────────────────────────────────────────────────────
   const completeStep = useCallback(() => {
     const completedIndex = currentStep;
@@ -313,11 +374,11 @@ export function useEscapeSession() {
     const isLast = next >= steps.length;
 
     if (isLast) {
-      // Delay phase change so the burst animation has time to run
+      playCompleteFanfare();
       setTimeout(async () => {
         setPhase("complete");
+        localStorage.removeItem(ACTIVE_SESSION_KEY);
 
-        // Complete session and recalculate streak
         if (userId) {
           try {
             let activeDbId = sessionDbId;
@@ -327,7 +388,7 @@ export function useEscapeSession() {
                 goal: goal || "Completed session",
                 steps,
                 energyLevel: 5,
-                lowPowerMode: false,
+                lowPowerMode,
                 fiveSecondStart: "",
               });
               setSessionDbId(activeDbId);
@@ -340,7 +401,6 @@ export function useEscapeSession() {
               setStreak(result.streak);
             }
           } catch (e) {
-            // Fall back to a plain GET if the complete endpoint fails
             try {
               const s = await getStreak(userId);
               if (s) setStreak(s);
@@ -349,6 +409,7 @@ export function useEscapeSession() {
         }
       }, 950);
     } else {
+      playStepChime();
       setTimeout(() => {
         setCurrentStep(next);
         advanceTo(next);
@@ -356,10 +417,10 @@ export function useEscapeSession() {
     }
 
     return completedIndex;
-  }, [currentStep, steps, advanceTo, sessionDbId, userId, goal]);
+  }, [currentStep, steps, advanceTo, sessionDbId, userId, goal, lowPowerMode]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // handleStuck
+  // handleStuck — with dynamic database synchronization
   // ──────────────────────────────────────────────────────────────────────────
   const handleStuck = useCallback(async () => {
     if (stuckLoading) return;
@@ -388,18 +449,53 @@ export function useEscapeSession() {
         );
         setSteps(updated);
         setCardAnim("enter");
+
+        // Sync with backend DB so task history reflects the breakdown
+        if (sessionDbId) {
+          updateSessionSteps(sessionDbId, updated).catch((e) =>
+            console.warn("Escape: updateSessionSteps failed", e)
+          );
+        }
       }
     } catch {
-      // Silent — user can retry
+      // Silent
     } finally {
       setStuckLoading(false);
     }
   }, [stuckLoading, steps, currentStep, sessionDbId, resetIdle]);
 
   // ──────────────────────────────────────────────────────────────────────────
+  // editStep & skipStep
+  // ──────────────────────────────────────────────────────────────────────────
+  const editStep = useCallback((index, newText) => {
+    if (!newText || !newText.trim()) return;
+    setSteps((prev) => {
+      const next = [...prev];
+      if (next[index]) {
+        next[index] = { ...next[index], text: newText.trim() };
+        if (sessionDbId) {
+          updateSessionSteps(sessionDbId, next).catch(() => {});
+        }
+      }
+      return next;
+    });
+  }, [sessionDbId]);
+
+  const skipStep = useCallback((index) => {
+    const next = index + 1;
+    if (next >= steps.length) {
+      completeStep();
+    } else {
+      setCurrentStep(next);
+      advanceTo(next);
+    }
+  }, [steps.length, completeStep, advanceTo]);
+
+  // ──────────────────────────────────────────────────────────────────────────
   // reset
   // ──────────────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
+    localStorage.removeItem(ACTIVE_SESSION_KEY);
     setPhase("intake");
     setGoal("");
     setError(null);
@@ -411,11 +507,11 @@ export function useEscapeSession() {
     setVisibleStep(0);
     setQCount(0);
     setSessionDbId(null);
+    setLowPowerMode(false);
     stuckCountRef.current = 0;
     resetIdle();
   }, [resetIdle]);
 
-  // ──────────────────────────────────────────────────────────────────────────
   return {
     phase,
     goal,
@@ -433,6 +529,7 @@ export function useEscapeSession() {
     streak,
     userId,
     qCount,
+    lowPowerMode,
     stuckCount: stuckCountRef.current,
     // actions
     setGoal,
@@ -443,6 +540,8 @@ export function useEscapeSession() {
     generateNow,
     completeStep,
     handleStuck,
+    editStep,
+    skipStep,
     resetIdle,
     reset,
   };

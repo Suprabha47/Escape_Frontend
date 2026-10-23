@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { getUserSessions, getSessionDetails } from "../lib/api.js";
+import { getUserSessions, getSessionDetails, deleteSession } from "../lib/api.js";
 import styles from "./ProfileModal.module.css";
 
 export default function ProfileModal({ isOpen, onClose, userId, streak }) {
@@ -66,6 +66,21 @@ export default function ProfileModal({ isOpen, onClose, userId, streak }) {
       setExpandedSteps([]);
     } finally {
       setLoadingSteps(false);
+    }
+  };
+
+  const handleDeleteSession = async (e, sessionId) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this session from your history?")) return;
+    try {
+      await deleteSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (expandedId === sessionId) {
+        setExpandedId(null);
+        setExpandedSteps(null);
+      }
+    } catch (err) {
+      console.warn("Failed to delete session", err);
     }
   };
 
@@ -195,7 +210,18 @@ export default function ProfileModal({ isOpen, onClose, userId, streak }) {
                           <span className={styles.statusDot} />
                           {isDone ? "Completed" : "In Progress"}
                         </div>
-                        <span className={styles.date}>{formattedDate}</span>
+                        <div className={styles.sessionRightMeta}>
+                          <span className={styles.date}>{formattedDate}</span>
+                          <button
+                            type="button"
+                            className={styles.deleteBtn}
+                            onClick={(e) => handleDeleteSession(e, s.id)}
+                            title="Delete this session from history"
+                            aria-label="Delete session"
+                          >
+                            🗑
+                          </button>
+                        </div>
                       </div>
 
                       <h3 className={styles.goal}>{s.goal}</h3>

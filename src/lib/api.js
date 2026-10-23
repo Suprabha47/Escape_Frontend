@@ -14,6 +14,34 @@
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const USER_KEY = "escape_user_id";
 
+/**
+ * Update steps_json for an active session.
+ *
+ * @param {string} sessionId
+ * @param {Array<object>} steps
+ * @returns {Promise<object>}
+ */
+export async function updateSessionSteps(sessionId, steps) {
+  const res = await apiFetch(`/sessions/${sessionId}/steps`, {
+    method: "PATCH",
+    body: JSON.stringify({ steps_json: steps }),
+  });
+  return res.json();
+}
+
+/**
+ * Delete a session by ID.
+ *
+ * @param {string} sessionId
+ * @returns {Promise<{ ok: boolean, deleted: boolean }>}
+ */
+export async function deleteSession(sessionId) {
+  const res = await apiFetch(`/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // User identity — anonymous, persisted to localStorage
 // ---------------------------------------------------------------------------
